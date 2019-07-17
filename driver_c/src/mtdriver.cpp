@@ -20,6 +20,59 @@ using namespace std;
 
 namespace MTI{
 
+//uint16_t  16位
+#define BSWAP_16(x) \
+    (uint16_t)((((uint16_t)(x) & 0x00ff) << 8) | \
+              (((uint16_t)(x) & 0xff00) >> 8) \
+             )
+//uint32_t 32位
+#define BSWAP_32(x) \
+    (uint32_t)((((uint32_t)(x) & 0xff000000) >> 24) | \
+              (((uint32_t)(x) & 0x00ff0000) >> 8) | \
+              (((uint32_t)(x) & 0x0000ff00) << 8) | \
+              (((uint32_t)(x) & 0x000000ff) << 24) \
+             )
+//uint64_t 64位
+#define BSWAP_64(x) \
+    (uint64_t)((((uint64_t)(x) & 0xff00000000000000) >> 56) | \
+              (((uint64_t)(x) & 0x00ff000000000000) >> 40) | \
+              (((uint64_t)(x) & 0x0000ff0000000000) >> 24) | \
+              (((uint64_t)(x) & 0x000000ff00000000) >> 8) | \
+              (((uint64_t)(x) & 0x00000000ff000000) << 8) | \
+              (((uint64_t)(x) & 0x0000000000ff0000) << 24) | \
+              (((uint64_t)(x) & 0x000000000000ff00) << 40) | \
+              (((uint64_t)(x) & 0x00000000000000ff) << 56) \
+             )
+#if 0
+#define BSWAP_64(x) (((uint64_t)(x) & 0x00ff000000000000) >> 40) | \
+    (((uint64_t)(x) & 0x0000ff0000000000) >> 24) | \
+    (((uint64_t)(x) & 0x000000ff00000000) >> 8) | \
+    (((uint64_t)(x) & 0x00000000ff000000) << 8) | \
+    (((uint64_t)(x) & 0x0000000000ff0000) << 24) | \
+    (((uint64_t)(x) & 0x000000000000ff00) << 40) | \
+    (((uint64_t)(x) & 0x00000000000000ff) << 56) |
+#endif
+typedef union FLOAT_CONV{
+  float f;
+  char c[4];
+} float_conv;
+
+static float swapFloat(const char* value) {
+  float_conv f;
+  for (int i=0; i<4; i++) {
+    f.c[i] = value[3-i];
+  }
+  return f.f;
+}
+
+static int32_t swapFloats(float *pFs, const char* datas, int32_t pFSize) {
+  int32_t iRet = 0;
+  for (int i=0; i<pFSize; i++) {
+    pFs[i] = swapFloat(datas + i*4);
+  }
+  return iRet;
+}
+
 #define REC_BUFFER_MAX_SIZE 1024
 #define TIME_OUT 2000       //timeout is 2 ms millisecond
 
@@ -28,6 +81,8 @@ struct timeval time;
 fd_set fs_read;
 static char recBits[REC_BUFFER_MAX_SIZE] = {0};
 
+static float swapFloat(const char* value);
+static int32_t swapFloats(float *pFs, const char* datas, int32_t pFSize);
 static int32_t openUart(int32_t &mFd, const char *pDev);
 static int32_t setNewOptions(int32_t mFd, const BAUD_RATE cBaudRate, const int mDatabits,
                              const int mStop, const bool sHandshake, const bool hHandshake);
@@ -59,12 +114,11 @@ static int32_t parseTemperature(const char* mRecBuff, const uint16_t dataId) {
   float temp = 0.0;
   if ((dataId & XDI_DATA_FLOAT_FORMAT) == 0x0003) {
     //data format is double
-    double *pdt = (double*)mRecBuff;
-    temp = (double)(*pdt);
+    //double *pdt = (double*)mRecBuff;
+    //temp = (double)(*pdt);
   } else {
     //data format is float
-    float *pft = (float*)mRecBuff;
-    temp = *pft;
+    temp = swapFloat(mRecBuff);
   }
 
   printf("frame data temperature is %f\n", temp);
@@ -75,8 +129,9 @@ static int32_t parseTimestamp(const char* mRecBuff, const uint16_t dataId) {
   int32_t iRet = 0;
   switch (dataId & XDI_DATA_TYPE) {
     case 0x10: {
-      unsigned long ns = *((unsigned long *)mRecBuff);
-      unsigned short year = *((unsigned short *)(mRecBuff + sizeof(unsigned long)));
+      uint64_t ns = *((uint64_t *)mRecBuff);
+      ns = BSWAP_64(ns);
+      uint16_t year = BSWAP_16(*((uint16_t *)(mRecBuff + sizeof(unsigned long))));
       uint8_t *ptemp = (uint8_t*)(mRecBuff + sizeof(unsigned long) + sizeof(unsigned short));
       uint8_t month = ptemp[0], day = ptemp[1], hour = ptemp[2];
       uint8_t minute = ptemp[3], second = ptemp[4],flags = ptemp[5];
@@ -84,8 +139,8 @@ static int32_t parseTimestamp(const char* mRecBuff, const uint16_t dataId) {
     		  ns, year, month, day, hour, minute, second, flags);
       break;
     } case 0x20: {
-      uint16_t frameCounter = 0;
-      frameCounter = *((uint16_t*)mRecBuff);
+      uint16_t frameCounter = *((uint16_t*)mRecBuff);
+      frameCounter = BSWAP_16(frameCounter);
       printf("frame counter:%d\n", frameCounter);
       break;
     } case 0x30: {
@@ -105,7 +160,7 @@ static int32_t parseTimestamp(const char* mRecBuff, const uint16_t dataId) {
       break;
     } case 0x60: {
       uint64_t SampleTimeFine = 0;
-      SampleTimeFine = *((uint64_t*)mRecBuff);
+      SampleTimeFine  = BSWAP_64(*((uint64_t*)mRecBuff));
       printf("SampleTimeFine :%ld\n",SampleTimeFine);
       break;
     } case 0x70: {
@@ -149,12 +204,12 @@ static int32_t parseOrientation(const char* mRecBuff, const uint16_t dataId) {
   switch (dataId & XDI_DATA_TYPE) {
     case 0x10: {  // Quaternion
       float quater[4] = {0};
-      memcpy(quater, mRecBuff, sizeof(float)*4);
+      swapFloats(quater, mRecBuff, 4);
       printf("Quaternion (%f,%f,%f,%f)\n", quater[0], quater[1], quater[2], quater[3]);
       break;
     } case 0x20: {  //Rotation Matrix
       float rotation[9] = {0};
-      memcpy(rotation, mRecBuff, sizeof(float)*9);
+      swapFloats(rotation, mRecBuff, 9);
       printf("rotation:(%f,%f,%f,%f,%f,%f,%f,%f,%f)!\n",
     		  rotation[0], rotation[1], rotation[2],
 			  rotation[3], rotation[4], rotation[5],
@@ -162,7 +217,7 @@ static int32_t parseOrientation(const char* mRecBuff, const uint16_t dataId) {
       break;
     } case 0x30: {  //Euler Angles
       float euler[3] = {0};
-      memcpy(euler, mRecBuff, sizeof(float)*3);
+      swapFloats(euler, mRecBuff, 3);
       printf("rool pitch yaw (%f,%f,%f)\n", euler[0], euler[1], euler[2]);
       break;
     }
@@ -186,13 +241,13 @@ static int32_t parseAcceleration(const char* mRecBuff, const uint16_t dataId) {
   int32_t iRet = 0;
   switch (dataId & XDI_USING_COORDINATE_SYS) {
     case 0x00: {
-      printf("Orientation using ENU system!\n");
+      //printf("Orientation using ENU system!\n");
       break;
     } case 0x04: {
-      printf("Orientation using NED system!\n");
+      //printf("Orientation using NED system!\n");
       break;
     } case 0x08: {
-      printf("Orientation using NWU system!\n");
+      //printf("Orientation using NWU system!\n");
       break;
     }
      default: {
@@ -203,22 +258,22 @@ static int32_t parseAcceleration(const char* mRecBuff, const uint16_t dataId) {
   switch (dataId & XDI_DATA_TYPE) {
     case 0x10: {  // Delta V
       float Delta[3] = {0};
-      memcpy(Delta, mRecBuff, sizeof(float)*3);
+      swapFloats(Delta, mRecBuff, 3);
       printf("Delta(x,y,z) (%f,%f,%f)\n", Delta[0], Delta[1], Delta[2]);
       break;
     } case 0x20: {  //Acceleration
       float Acceleration[3] = {0};
-      memcpy(Acceleration, mRecBuff, sizeof(float)*3);
+      swapFloats(Acceleration, mRecBuff, 3);
       printf("Acceleration:(%f,%f,%f)!\n", Acceleration[0], Acceleration[1], Acceleration[2]);
       break;
     } case 0x30: {  //Free Acceleration
       float fAccele[3] = {0};
-      memcpy(fAccele, mRecBuff, sizeof(float)*3);
+      swapFloats(fAccele, mRecBuff, 3);
       printf("free Acceleration (%f,%f,%f)\n", fAccele[0], fAccele[1], fAccele[2]);
       break;
     } case 0x40: {  //AccelerationHR
       float AccelerationHR[3] = {0};
-      memcpy(AccelerationHR, mRecBuff, sizeof(float)*3);
+      swapFloats(AccelerationHR, mRecBuff, 3);
       printf("AccelerationHR (%f,%f,%f)\n", AccelerationHR[0], AccelerationHR[1], AccelerationHR[2]);
       break;
     }
@@ -233,13 +288,13 @@ static int32_t parsePosition(const char* mRecBuff, const uint16_t dataId) {
   int32_t iRet = 0;
   switch (dataId & XDI_USING_COORDINATE_SYS) {
     case 0x00: {
-      printf("Orientation using ENU system!\n");
+      //printf("Orientation using ENU system!\n");
       break;
     } case 0x04: {
-      printf("Orientation using NED system!\n");
+      //printf("Orientation using NED system!\n");
       break;
     } case 0x08: {
-      printf("Orientation using NWU system!\n");
+      //printf("Orientation using NWU system!\n");
       break;
     }
      default: {
@@ -286,13 +341,13 @@ static int32_t parseAngularVelocity(const char* mRecBuff, const uint16_t dataId)
   int32_t iRet = 0;
   switch (dataId & XDI_USING_COORDINATE_SYS) {
     case 0x00: {
-      printf("Orientation using ENU system!\n");
+      //printf("Orientation using ENU system!\n");
       break;
     } case 0x04: {
-      printf("Orientation using NED system!\n");
+      //printf("Orientation using NED system!\n");
       break;
     } case 0x08: {
-      printf("Orientation using NWU system!\n");
+      //printf("Orientation using NWU system!\n");
       break;
     }
      default: {
@@ -303,7 +358,7 @@ static int32_t parseAngularVelocity(const char* mRecBuff, const uint16_t dataId)
   switch (dataId & XDI_DATA_TYPE) {
     case 0x20: {  //Rate of Turn
       float gyrXYZ[3] = {0};
-      memcpy(gyrXYZ, mRecBuff, sizeof(float)*3);
+      swapFloats(gyrXYZ, mRecBuff, 3);
       printf("gyrXYZ(%f, %f, %f)\n", gyrXYZ[0], gyrXYZ[1], gyrXYZ[2]);
       break;
     } case 0x30: {  //Delta Q
@@ -561,7 +616,7 @@ static int32_t pollFdSelect() {
   return iRet;
 }
 
-//Do not check pRecData validity,you have to make sure that pRecData is large recBitcnt.
+//not check pRecData validity,you have to make sure that pRecData is large recBitcnt.
 static int32_t waitBits(char *pRecData, const int32_t recBitcnt) {
   int32_t iRet = 0;
   int32_t recLen = 0, rectemp = 0, waitTimes = 0;
@@ -677,8 +732,8 @@ int32_t parseMTIData2(char *pImuData, const int32_t imuDateSize) {
   int32_t iRet = 0;
   char* pData = pImuData;
   for (int i=0; i<imuDateSize;) {
-    uint16_t dataiId = *((uint16_t*)pData);
-    uint8_t dataLen = *(pData + sizeof(uint16_t));
+    uint16_t dataiId = BSWAP_16(*((uint16_t*)pData));
+    uint8_t dataLen = *((uint8_t*)(pData + 2));
     pData += 3;
     choiceParse(pData, dataiId);
     pData += dataLen;
@@ -716,14 +771,15 @@ int main() {
   }
   char bits[1024];
   int32_t recSize = 0;
-  while(1){
+  int mun = 0;
+  while(mun<10){
     if (MTI::recImuBits(bits, recSize) == 0) {
-      printf("recsize: %d  counter:%d\n", recSize, (uint8_t)bits[4]);
       MTI::parseMTIData2(bits, recSize);
     } else {
       printf("recsize: %d  counter:%d\n", recSize, (uint8_t)bits[4]);
     }
       usleep(100);
+      mun++;
   }
   MTI::deInitAll();
   return 0;
