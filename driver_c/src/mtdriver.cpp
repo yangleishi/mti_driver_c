@@ -57,24 +57,12 @@ typedef union FLOAT_CONV{
   char c[4];
 } float_conv;
 
-static float swapFloat(const char* value) {
-  float_conv f;
-  for (int i=0; i<4; i++) {
-    f.c[i] = value[3-i];
-  }
-  return f.f;
-}
-
-static int32_t swapFloats(float *pFs, const char* datas, int32_t pFSize) {
-  int32_t iRet = 0;
-  for (int i=0; i<pFSize; i++) {
-    pFs[i] = swapFloat(datas + i*4);
-  }
-  return iRet;
-}
-
 #define REC_BUFFER_MAX_SIZE 1024
 #define TIME_OUT 2000       //timeout is 2 ms millisecond
+
+#define POLL_SELECT_TIME_SEC  0      //set poll select time 0 m
+#define POLL_SELECT_TIME_USEC 1000   //set poll select time 1000 ums
+
 
 static int32_t imuFd = -1;
 struct timeval time;
@@ -111,6 +99,22 @@ static int32_t parseStatus(const char* mRecBuff, const uint16_t dataId);
 static int32_t parseErrorCodes(const char mErrorCodes);
 
 ////////////////Internal function/////////////////////
+static float swapFloat(const char* value) {
+  float_conv f;
+  for (int i=0; i<4; i++) {
+    f.c[i] = value[3-i];
+  }
+  return f.f;
+}
+
+static int32_t swapFloats(float *pFs, const char* datas, int32_t pFSize) {
+  int32_t iRet = 0;
+  for (int i=0; i<pFSize; i++) {
+    pFs[i] = swapFloat(datas + i*4);
+  }
+  return iRet;
+}
+
 static int32_t parseTemperature(const char* mRecBuff, const uint16_t dataId) {
   int32_t iRet = 0;
   float temp = 0.0;
@@ -634,8 +638,8 @@ static int32_t pollFdSelect() {
   int32_t iRet = 0;
   FD_ZERO(&fs_read);
   FD_SET(imuFd, &fs_read);
-  time.tv_sec = 0;
-  time.tv_usec = 1000;
+  time.tv_sec = POLL_SELECT_TIME_SEC;
+  time.tv_usec = POLL_SELECT_TIME_USEC;
   //使用select实现串口的多路通信
   iRet = select(imuFd+1, &fs_read, NULL, NULL, &time);
   return iRet;

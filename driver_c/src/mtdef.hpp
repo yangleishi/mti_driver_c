@@ -87,7 +87,7 @@ typedef enum BAUD_RATE {
   BAUD_B921600 = B921600,
 } BAUD_RATE;
 
-///Values for the XDI groups
+///imu data Values for the XDI groups
 const uint16_t XDI_GAROUPS_TEMPERATURE = 0x0800;
 const uint16_t XDI_GAROUPS_TIMESTAMP = 0x1000;
 const uint16_t XDI_GAROUPS_ORIENTATION = 0x2000;
