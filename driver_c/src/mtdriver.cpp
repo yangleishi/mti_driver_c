@@ -107,6 +107,8 @@ static int32_t parseMagnetic(const char* mRecBuff, const uint16_t dataId);
 static int32_t parseVelocity(const char* mRecBuff, const uint16_t dataId);
 static int32_t parseStatus(const char* mRecBuff, const uint16_t dataId);
 
+/////TODO unpack error codes
+static int32_t parseErrorCodes(const char mErrorCodes);
 
 ////////////////Internal function/////////////////////
 static int32_t parseTemperature(const char* mRecBuff, const uint16_t dataId) {
@@ -159,9 +161,9 @@ static int32_t parseTimestamp(const char* mRecBuff, const uint16_t dataId) {
       printf("pressure Age :%d\n",pressureAge);
       break;
     } case 0x60: {
-      uint64_t SampleTimeFine = 0;
-      SampleTimeFine  = BSWAP_64(*((uint64_t*)mRecBuff));
-      printf("SampleTimeFine :%ld\n",SampleTimeFine);
+      uint32_t SampleTimeFine = 0;
+      SampleTimeFine  = BSWAP_32(*((uint32_t*)mRecBuff));
+      printf("SampleTimeFine :%d\n",SampleTimeFine);
       break;
     } case 0x70: {
       uint64_t SampleTimeCoarse = 0;
@@ -187,7 +189,6 @@ static int32_t parseOrientation(const char* mRecBuff, const uint16_t dataId) {
   int32_t iRet = 0;
   switch (dataId & XDI_USING_COORDINATE_SYS) {
     case 0x00: {
-      printf("Orientation using ENU system!\n");
       break;
     } case 0x04: {
       printf("Orientation using NED system!\n");
@@ -483,6 +484,30 @@ static int32_t choiceParse(const char* mRecBuff, const uint16_t dataId) {
   return iRet;
 }
 
+static int32_t parseErrorCodes(const char mErrorCodes) {
+  int32_t iRet = 0;
+  switch ((uint8_t)mErrorCodes) {
+    case ERROR_CODE_OPERATION_SUCCESSFULLY: {
+      printf("Operation was performed successfully\n");
+      break;
+    } case ERROR_CODE_NO_BUS_COMMUNICATION: {
+      printf("No bus communication possible\n");
+      break;
+    } case ERROR_CODE_INITBUS_NOT_ISSUED: {
+      printf("InitBus and/or SetBID are not issued\n");
+      break;
+    } case ERROR_CODE_BAUD_RATE_LOW: {
+      printf("The device generates more data than the bus communication can handle (baud rate may be too low)\n");
+      break;
+    }
+    default: {
+      break;
+    }
+  }
+
+  return iRet;
+}
+
 static int32_t openUart(int32_t &mFd, const char *pDev) {
   int32_t iRet = 0;
 
@@ -610,7 +635,7 @@ static int32_t pollFdSelect() {
   FD_ZERO(&fs_read);
   FD_SET(imuFd, &fs_read);
   time.tv_sec = 0;
-  time.tv_usec = 100;
+  time.tv_usec = 1000;
   //使用select实现串口的多路通信
   iRet = select(imuFd+1, &fs_read, NULL, NULL, &time);
   return iRet;
@@ -690,39 +715,66 @@ int32_t recImuBits(char *pImuData, int32_t &rImuBitCnt) {
 
     iRet = waitBits(recBits, 1);
     if (iRet != 0 || (uint8_t)recBits[0] != FRAME_A1) {
-      //printf("not frame a1\n");
+      printf("+++++++++++++++++++++++not frame a1  %d\n", (uint8_t)recBits[0]);
       continue;
     }
     iRet = waitBits(recBits, 1);
     if (iRet != 0 || (uint8_t)recBits[0] != FRAME_A2){
-      //printf("not frame a2\n");
+      printf("+++++++++++++++++++++++not frame a2\n");
       continue;
     }
     iRet = waitBits(recBits, 1);
-    if (iRet != 0 || (uint8_t)recBits[0] != FRAME_MTI_DAtA2){
-      //perror("not frame data2!\n");
-      continue;
-    }
-    iRet = waitBits(recBits, 1);
-    if (iRet != 0){
-      //perror("read frame size failed\n");
-      continue;
-    }
-    int32_t dataSize = (int32_t)(uint32_t)(recBits[0]);
-    iRet = waitBits(recBits, dataSize+1);
-    if (iRet != 0){
-      //perror("read frame data failed\n");
-      continue;
-    }
-    //TODO  crc
-    iRet = dataCrc(recBits, dataSize, recBits[dataSize]);
     if (iRet != 0) {
-      printf("crc check failed\n");
+      printf("+++++++++++++++++++++++++++++message id rec failed\n");
       continue;
     }
-    rImuBitCnt = dataSize;
-    memcpy(pImuData, recBits, dataSize);
-    return 0;
+
+    switch ((uint8_t)recBits[0]) {
+      /****************************************************************
+       *normal imu data
+      ***************************************************************/
+      case FRAME_MTI_DAtA2: {
+        iRet = waitBits(recBits, 1);
+    	if (iRet != 0){
+    	  perror("+++++++++++++++++++++++++++++++++read frame size failed\n");
+    	  break;
+    	}
+    	int32_t dataSize = (int32_t)(uint32_t)(recBits[0]);
+    	iRet = waitBits(recBits, dataSize+1);
+    	if (iRet != 0){
+    	  perror("+++++++++++++++++++++++++++++++++read frame data failed\n");
+    	  break;
+    	}
+    	//TODO  crc
+    	iRet = dataCrc(recBits, dataSize, recBits[dataSize]);
+    	if (iRet != 0) {
+    	  printf("+++++++++++++++++++++++++++++++crc check failed\n");
+    	  break;
+    	}
+    	rImuBitCnt = dataSize;
+    	memcpy(pImuData, recBits, dataSize);
+    	return 0;
+      }
+      /****************************************************************
+       *ERROR_MID error codes
+      ***************************************************************/
+      case ERROR_MID: {
+        iRet = waitBits(recBits, 1);
+    	if (iRet != 0){
+    	  perror("+++++++++++++++++++++++++++++++++read frame size failed\n");
+    	  break;
+    	}
+    	int32_t dataSize = (int32_t)(uint32_t)(recBits[0]);
+    	iRet = waitBits(recBits, dataSize+1);
+    	if (iRet != 0){
+    	  perror("+++++++++++++++++++++++++++++++++read frame data failed\n");
+    	  break;
+    	}
+    	parseErrorCodes(recBits[0]);
+        return 1;
+      }
+    }
+
   }
   printf("time out, read mti failed\n");
   return iRet;
@@ -764,7 +816,7 @@ int main() {
   int32_t iRet = 0;
   //printf("float: %d, double:%d",sizeof(unsigned short), sizeof(double));
 
-  iRet = MTI::initMtiImu("/dev/ttyUSB0");
+  iRet = MTI::initMtiImu("/dev/ttyS2");
   if (iRet < 0) {
     printf("exit  !\n");
     return -1;
@@ -772,15 +824,32 @@ int main() {
   char bits[1024];
   int32_t recSize = 0;
   int mun = 0;
-  while(mun<10){
+  struct timeval startT, endT;
+  gettimeofday(&startT, NULL);
+
+  while(mun<1000){
+  #if 1
     if (MTI::recImuBits(bits, recSize) == 0) {
       MTI::parseMTIData2(bits, recSize);
-    } else {
-      printf("recsize: %d  counter:%d\n", recSize, (uint8_t)bits[4]);
     }
-      usleep(100);
-      mun++;
+  #endif
+
+#if 0
+    iRet = MTI::waitBits(bits, 1);
+    if(iRet == 0) {
+      printf("%x ", (uint8_t)bits[0]);
+    }
+    if(mun % 16 == 0)
+    	printf("\n");
+#endif
+
+    usleep(1);
+    mun++;
   }
+  gettimeofday(&endT, NULL);
+  long long int diffT  = (endT.tv_sec - startT.tv_sec)* 1000000 + (endT.tv_usec - startT.tv_usec);
+  printf("frame rate:%f\n", 1000000.0*1000.0/diffT);
+
   MTI::deInitAll();
   return 0;
 }
