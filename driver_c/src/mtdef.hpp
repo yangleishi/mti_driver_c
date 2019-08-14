@@ -21,10 +21,10 @@ namespace MTI{
  * MID message id
  ********************************************************************************/
 //Newer data packet (MTi-10/100 series only)
-const uint16_t  FRAME_MTI_DAtA2 = 0x36;
+static const uint16_t  FRAME_MTI_DAtA2 = 0x36;
 
 //Error message, 1 data byte
-const uint16_t  ERROR_MID = 0x42;
+static const uint16_t  ERROR_MID = 0x42;
 
 
 
@@ -65,12 +65,12 @@ const uint16_t  ERROR_MID = 0x42;
 49: "Specified filter profile ID is not available on the device or the user is trying to duplicate an existing filter profile type",
 50: "The settings stored in the device's non volatile memory are invalid",
 */
-const uint8_t ERROR_CODE_OPERATION_SUCCESSFULLY = 0;
-const uint8_t ERROR_CODE_NO_BUS_COMMUNICATION = 1;
-const uint8_t ERROR_CODE_INITBUS_NOT_ISSUED = 2;
-const uint8_t ERROR_CODE_PERIOD_SEND_INVALID = 3;
-const uint8_t ERROR_CODE_MESSAGE_INVALID = 4;
-const uint8_t ERROR_CODE_BAUD_RATE_LOW = 41;
+static const uint8_t ERROR_CODE_OPERATION_SUCCESSFULLY = 0;
+static const uint8_t ERROR_CODE_NO_BUS_COMMUNICATION = 1;
+static const uint8_t ERROR_CODE_INITBUS_NOT_ISSUED = 2;
+static const uint8_t ERROR_CODE_PERIOD_SEND_INVALID = 3;
+static const uint8_t ERROR_CODE_MESSAGE_INVALID = 4;
+static const uint8_t ERROR_CODE_BAUD_RATE_LOW = 41;
 
 /**********************************************************************************
 波特率变量,RS232 max baud rate is 115200, RS485 max baud rate can set 921600.
@@ -88,32 +88,32 @@ typedef enum BAUD_RATE {
 } BAUD_RATE;
 
 ///imu data Values for the XDI groups
-const uint16_t XDI_GAROUPS_TEMPERATURE = 0x0800;
-const uint16_t XDI_GAROUPS_TIMESTAMP = 0x1000;
-const uint16_t XDI_GAROUPS_ORIENTATION = 0x2000;
-const uint16_t XDI_GAROUPS_PRESSURE = 0x3000;
-const uint16_t XDI_GAROUPS_ACCELERATION = 0x4000;
-const uint16_t XDI_GAROUPS_POSITION = 0x5000;
-const uint16_t XDI_GAROUPS_GNSS = 0x7000;
-const uint16_t XDI_GAROUPS_ANGULAR_V = 0x8000;
-const uint16_t XDI_GAROUPS_GPS = 0x8800;
-const uint16_t XDI_GAROUPS_SENSOR_READOUT = 0xA000;
-const uint16_t XDI_GAROUPS_AnalogIn = 0x4000;
-const uint16_t XDI_GAROUPS_MAGNETIC = 0xC000;
-const uint16_t XDI_GAROUPS_VElOCITY = 0xD000;
-const uint16_t XDI_GAROUPS_STATUS = 0xE000;
+static const uint16_t XDI_GAROUPS_TEMPERATURE = 0x0800;
+static const uint16_t XDI_GAROUPS_TIMESTAMP = 0x1000;
+static const uint16_t XDI_GAROUPS_ORIENTATION = 0x2000;
+static const uint16_t XDI_GAROUPS_PRESSURE = 0x3000;
+static const uint16_t XDI_GAROUPS_ACCELERATION = 0x4000;
+static const uint16_t XDI_GAROUPS_POSITION = 0x5000;
+static const uint16_t XDI_GAROUPS_GNSS = 0x7000;
+static const uint16_t XDI_GAROUPS_ANGULAR_V = 0x8000;
+static const uint16_t XDI_GAROUPS_GPS = 0x8800;
+static const uint16_t XDI_GAROUPS_SENSOR_READOUT = 0xA000;
+static const uint16_t XDI_GAROUPS_AnalogIn = 0x4000;
+static const uint16_t XDI_GAROUPS_MAGNETIC = 0xC000;
+static const uint16_t XDI_GAROUPS_VElOCITY = 0xD000;
+static const uint16_t XDI_GAROUPS_STATUS = 0xE000;
 
 //check data is float or double
-const uint16_t XDI_DATA_FLOAT_FORMAT = 0x0003;
+static const uint16_t XDI_DATA_FLOAT_FORMAT = 0x0003;
 
 //check MTI using which coordinate sys,include ENU NED NWU
-const uint16_t XDI_DATA_TYPE = 0x00F0;
+static const uint16_t XDI_DATA_TYPE = 0x00F0;
 
 //check MTI using which coordinate sys,include ENU NED NWU
-const uint16_t XDI_GROUP = 0xF800;
+static const uint16_t XDI_GROUP = 0xF800;
 
 //check MTI using which coordinate sys,include ENU NED NWU
-const uint16_t XDI_USING_COORDINATE_SYS = 0x000C;
+static const uint16_t XDI_USING_COORDINATE_SYS = 0x000C;
 
 }//end namespace MTI
 
