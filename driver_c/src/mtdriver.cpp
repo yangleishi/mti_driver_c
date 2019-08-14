@@ -808,10 +808,12 @@ int32_t parseMTIData2(char *pImuData, const int32_t imuDateSize) {
 #include <stdlib.h>
 #include <signal.h>
 
+static int32_t isExit = 0;
+
 void sig_handler( int sig) {
   if(sig == SIGINT) {
-    cout<<"ctrl+c has been keydownd"<<endl;
-    exit(0);
+    printf("ctrl+c has been keydownd\n");
+    isExit = 1;
   }
 }
 
@@ -827,33 +829,23 @@ int main() {
   }
   char bits[1024];
   int32_t recSize = 0;
-  int mun = 0;
   struct timeval startT, endT;
   gettimeofday(&startT, NULL);
 
-  while(mun<1000){
+  while (!isExit) {
   #if 1
     if (MTI::recImuBits(bits, recSize) == 0) {
       MTI::parseMTIData2(bits, recSize);
     }
   #endif
 
-#if 0
-    iRet = MTI::waitBits(bits, 1);
-    if(iRet == 0) {
-      printf("%x ", (uint8_t)bits[0]);
-    }
-    if(mun % 16 == 0)
-    	printf("\n");
-#endif
-
     usleep(1);
-    mun++;
   }
+# if 0
   gettimeofday(&endT, NULL);
   long long int diffT  = (endT.tv_sec - startT.tv_sec)* 1000000 + (endT.tv_usec - startT.tv_usec);
   printf("frame rate:%f\n", 1000000.0*1000.0/diffT);
-
+#endif
   MTI::deInitAll();
   return 0;
 }
