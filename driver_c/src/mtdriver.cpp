@@ -80,15 +80,15 @@ static int32_t waitBits(char *pRecData, const int32_t recBitcnt);
 static int32_t dataCrc(const char* mRecBuff, const int32_t mCalSize, const char mCrc);
 
 ////TODO unpack frame data
-static int32_t choiceParse(const char* mRecBuff, const uint16_t dataId);
+static int32_t choiceParse(const char* mRecBuff, const uint16_t dataId, MT_IMU_MSG *pMsg);
 static int32_t parseTemperature(const char* mRecBuff, const uint16_t dataId);
-static int32_t parseTimestamp(const char* mRecBuff, const uint16_t dataId);
+static int32_t parseTimestamp(const char* mRecBuff, const uint16_t dataId, MT_IMU_MSG *pMsg);
 static int32_t parseOrientation(const char* mRecBuff, const uint16_t dataId);
 static int32_t parsePressure(const char* mRecBuff, const uint16_t dataId);
-static int32_t parseAcceleration(const char* mRecBuff, const uint16_t dataId);
+static int32_t parseAcceleration(const char* mRecBuff, const uint16_t dataId, MT_IMU_MSG *pMsg);
 static int32_t parsePosition(const char* mRecBuff, const uint16_t dataId);
 static int32_t parseGNSS(const char* mRecBuff, const uint16_t dataId);
-static int32_t parseAngularVelocity(const char* mRecBuff, const uint16_t dataId);
+static int32_t parseAngularVelocity(const char* mRecBuff, const uint16_t dataId, MT_IMU_MSG *pMsg);
 static int32_t parseGPS(const char* mRecBuff, const uint16_t dataId);
 static int32_t parseSCR(const char* mRecBuff, const uint16_t dataId);
 static int32_t parseMagnetic(const char* mRecBuff, const uint16_t dataId);
@@ -131,7 +131,7 @@ static int32_t parseTemperature(const char* mRecBuff, const uint16_t dataId) {
   return iRet;
 }
 
-static int32_t parseTimestamp(const char* mRecBuff, const uint16_t dataId) {
+static int32_t parseTimestamp(const char* mRecBuff, const uint16_t dataId, MT_IMU_MSG *pMsg) {
   int32_t iRet = 0;
   switch (dataId & XDI_DATA_TYPE) {
     case 0x10: {
@@ -147,7 +147,7 @@ static int32_t parseTimestamp(const char* mRecBuff, const uint16_t dataId) {
     } case 0x20: {
       uint16_t frameCounter = *((uint16_t*)mRecBuff);
       frameCounter = BSWAP_16(frameCounter);
-      printf("frame counter:%d\n", frameCounter);
+      pMsg->mCounter = frameCounter;
       break;
     } case 0x30: {
       uint64_t timeOfWeek = 0;
@@ -167,7 +167,7 @@ static int32_t parseTimestamp(const char* mRecBuff, const uint16_t dataId) {
     } case 0x60: {
       uint32_t SampleTimeFine = 0;
       SampleTimeFine  = BSWAP_32(*((uint32_t*)mRecBuff));
-      printf("SampleTimeFine :%d\n",SampleTimeFine);
+      pMsg->mSampleTimeFine = SampleTimeFine;
       break;
     } case 0x70: {
       uint64_t SampleTimeCoarse = 0;
@@ -242,7 +242,7 @@ static int32_t parsePressure(const char* mRecBuff, const uint16_t dataId) {
   return iRet;
 }
 
-static int32_t parseAcceleration(const char* mRecBuff, const uint16_t dataId) {
+static int32_t parseAcceleration(const char* mRecBuff, const uint16_t dataId, MT_IMU_MSG *pMsg) {
   int32_t iRet = 0;
   switch (dataId & XDI_USING_COORDINATE_SYS) {
     case 0x00: {
@@ -262,24 +262,16 @@ static int32_t parseAcceleration(const char* mRecBuff, const uint16_t dataId) {
 
   switch (dataId & XDI_DATA_TYPE) {
     case 0x10: {  // Delta V
-      float Delta[3] = {0};
-      swapFloats(Delta, mRecBuff, 3);
-      printf("Delta(x,y,z) (%f,%f,%f)\n", Delta[0], Delta[1], Delta[2]);
+      swapFloats(pMsg->mAcceleration, mRecBuff, 3);
       break;
     } case 0x20: {  //Acceleration
-      float Acceleration[3] = {0};
-      swapFloats(Acceleration, mRecBuff, 3);
-      printf("Acceleration:(%f,%f,%f)!\n", Acceleration[0], Acceleration[1], Acceleration[2]);
+      swapFloats(pMsg->mAcceleration, mRecBuff, 3);
       break;
     } case 0x30: {  //Free Acceleration
-      float fAccele[3] = {0};
-      swapFloats(fAccele, mRecBuff, 3);
-      printf("free Acceleration (%f,%f,%f)\n", fAccele[0], fAccele[1], fAccele[2]);
+      swapFloats(pMsg->mAcceleration, mRecBuff, 3);
       break;
     } case 0x40: {  //AccelerationHR
-      float AccelerationHR[3] = {0};
-      swapFloats(AccelerationHR, mRecBuff, 3);
-      printf("AccelerationHR (%f,%f,%f)\n", AccelerationHR[0], AccelerationHR[1], AccelerationHR[2]);
+      swapFloats(pMsg->mAcceleration, mRecBuff, 3);
       break;
     }
     default: {
@@ -342,7 +334,7 @@ static int32_t parseGNSS(const char* mRecBuff, const uint16_t dataId) {
   return iRet;
 }
 
-static int32_t parseAngularVelocity(const char* mRecBuff, const uint16_t dataId) {
+static int32_t parseAngularVelocity(const char* mRecBuff, const uint16_t dataId, MT_IMU_MSG *pMsg) {
   int32_t iRet = 0;
   switch (dataId & XDI_USING_COORDINATE_SYS) {
     case 0x00: {
@@ -362,19 +354,13 @@ static int32_t parseAngularVelocity(const char* mRecBuff, const uint16_t dataId)
 
   switch (dataId & XDI_DATA_TYPE) {
     case 0x20: {  //Rate of Turn
-      float gyrXYZ[3] = {0};
-      swapFloats(gyrXYZ, mRecBuff, 3);
-      printf("gyrXYZ(%f, %f, %f)\n", gyrXYZ[0], gyrXYZ[1], gyrXYZ[2]);
+      swapFloats(pMsg->mAngularVelocity, mRecBuff, 3);
       break;
     } case 0x30: {  //Delta Q
-      float DeltaQ[3] = {0};
-      memcpy(DeltaQ, mRecBuff, sizeof(float)*3);
-      printf("Delta Q (%f,%f,%f)\n", DeltaQ[0], DeltaQ[1], DeltaQ[2]);
+      memcpy(pMsg->mAngularVelocity, mRecBuff, sizeof(float)*3);
       break;
     } case 0x40: {  //RateOfTurnHR
-      float gyrXYZ[3] = {0};
-      memcpy(gyrXYZ, mRecBuff, sizeof(float)*3);
-      printf("RateOfTurnHR gyrXYZ (%f,%f,%f)\n", gyrXYZ[0], gyrXYZ[1], gyrXYZ[2]);
+      memcpy(pMsg->mAngularVelocity, mRecBuff, sizeof(float)*3);
       break;
     }
     default: {
@@ -438,14 +424,14 @@ static int32_t parseStatus(const char* mRecBuff, const uint16_t dataId) {
   return iRet;
 }
 
-static int32_t choiceParse(const char* mRecBuff, const uint16_t dataId) {
+static int32_t choiceParse(const char* mRecBuff, const uint16_t dataId, MT_IMU_MSG *pMsg) {
   int32_t iRet = 0;
   switch (dataId & XDI_GROUP) {
     case XDI_GAROUPS_TEMPERATURE: {
       parseTemperature(mRecBuff, dataId);
       break;
     } case XDI_GAROUPS_TIMESTAMP: {
-      parseTimestamp(mRecBuff, dataId);
+      parseTimestamp(mRecBuff, dataId, pMsg);
       break;
     } case XDI_GAROUPS_ORIENTATION: {
       parseOrientation(mRecBuff, dataId);
@@ -454,7 +440,7 @@ static int32_t choiceParse(const char* mRecBuff, const uint16_t dataId) {
       parsePressure(mRecBuff, dataId);
       break;
     } case XDI_GAROUPS_ACCELERATION: {
-      parseAcceleration(mRecBuff, dataId);
+      parseAcceleration(mRecBuff, dataId, pMsg);
       break;
     } case XDI_GAROUPS_POSITION: {
       parsePosition(mRecBuff, dataId);
@@ -463,7 +449,7 @@ static int32_t choiceParse(const char* mRecBuff, const uint16_t dataId) {
       parseGNSS(mRecBuff, dataId);
       break;
     } case XDI_GAROUPS_ANGULAR_V: {
-      parseAngularVelocity(mRecBuff, dataId);
+      parseAngularVelocity(mRecBuff, dataId, pMsg);
       break;
     } case XDI_GAROUPS_GPS: {
       parseGPS(mRecBuff, dataId);
@@ -784,14 +770,14 @@ int32_t recImuBits(char *pImuData, int32_t &rImuBitCnt) {
   return iRet;
 }
 
-int32_t parseMTIData2(char *pImuData, const int32_t imuDateSize) {
+int32_t parseMTIData2(char *pImuData, const int32_t imuDateSize, MT_IMU_MSG *pMsg) {
   int32_t iRet = 0;
   char* pData = pImuData;
   for (int i=0; i<imuDateSize;) {
     uint16_t dataiId = BSWAP_16(*((uint16_t*)pData));
     uint8_t dataLen = *((uint8_t*)(pData + 2));
     pData += 3;
-    choiceParse(pData, dataiId);
+    choiceParse(pData, dataiId, pMsg);
     pData += dataLen;
     i += (3 + dataLen);
   }
@@ -831,11 +817,15 @@ int main() {
   int32_t recSize = 0;
   struct timeval startT, endT;
   gettimeofday(&startT, NULL);
-
+  MTI::MT_IMU_MSG m_Msg;
+  //
   while (!isExit) {
   #if 1
     if (MTI::recImuBits(bits, recSize) == 0) {
-      MTI::parseMTIData2(bits, recSize);
+      MTI::parseMTIData2(bits, recSize, &m_Msg);
+      printf("cnt:%d Time:%d acce(%lf,%lf,%lf) aV(%lf,%lf,%lf)\n",
+             m_Msg.mCounter, m_Msg.mSampleTimeFine, m_Msg.mAcceleration[0], m_Msg.mAcceleration[1], m_Msg.mAcceleration[2],
+			 m_Msg.mAngularVelocity[0],  m_Msg.mAngularVelocity[1],  m_Msg.mAngularVelocity[2]);
     }
   #endif
 

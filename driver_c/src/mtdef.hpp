@@ -115,6 +115,18 @@ static const uint16_t XDI_GROUP = 0xF800;
 //check MTI using which coordinate sys,include ENU NED NWU
 static const uint16_t XDI_USING_COORDINATE_SYS = 0x000C;
 
+
+
+/*
+ * IMU message block include Acceleration rate of turn
+ */
+typedef struct {
+  uint16_t mCounter;
+  uint32_t mSampleTimeFine;
+  float mAcceleration[3];
+  float mAngularVelocity[3];
+} MT_IMU_MSG;
+
 }//end namespace MTI
 
 
